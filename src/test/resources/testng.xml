@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="sit-just" verbose="1" parallel="none">
+    <test name="JustCartTest">
+        <classes>
+            <class name="com.swiggy.integration.tests.Just.JustCartTest"/>
+        </classes>
+    </test>
+</suite>

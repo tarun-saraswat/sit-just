@@ -1,0 +1,261 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id 'idea'
+    id 'io.qameta.allure' version '2.11.2'
+    id 'com.diffplug.spotless' version '6.5.2'
+}
+
+def JAVA_ARTIFACTORY_READ_USERNAME = System.getenv('JAVA_ARTIFACTORY_READ_USERNAME') ?: "aws"
+def JAVA_ARTIFACTORY_READ_PASSWORD = System.getenv('JAVA_ARTIFACTORY_READ_PASSWORD') ?: "/opt/homebrew/bin/aws codeartifact get-authorization-token --domain swiggy-domain --domain-owner 157529275398 --region ap-southeast-1 --profile=shuttlesso --query authorizationToken --output text".execute().text
+def JAVA_ARTIFACTORY_READ_ENDPOINT = System.getenv('JAVA_ARTIFACTORY_READ_ENDPOINT') ?: "https://swiggy-domain-157529275398.d.codeartifact.ap-southeast-1.amazonaws.com/maven/swiggy-java-repository"
+
+def JAVA_ARTIFACTORY_WRITE_USERNAME = System.getenv('JAVA_ARTIFACTORY_WRITE_USERNAME')
+def JAVA_ARTIFACTORY_WRITE_PASSWORD = System.getenv('JAVA_ARTIFACTORY_WRITE_PASSWORD')
+def JAVA_ARTIFACTORY_WRITE_ENDPOINT = System.getenv('JAVA_ARTIFACTORY_WRITE_ENDPOINT')
+
+def isRelease = 'true' == (System.getenv('RELEASE'))
+def package_version = (isRelease) ? "${System.getenv('BUILD_ID') ?: "local"}" : "${System.getenv('BUILD_ID') ?: "local"}-SNAPSHOT"
+def group_name = "com.swiggy.sit-just"
+println("Building Version: " + package_version)
+
+group = 'sit-just'
+version = '1.0-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(8)
+    }
+}
+
+ext {
+    lombokVersion = '1.18.28'
+    if (!project.hasProperty('suiteFile')) {
+        suiteFile = 'testng.xml'
+    }
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url = "https://repo1.maven.org/maven2/" }
+    maven { url = "https://repo.maven.apache.org/maven2" }
+    maven {
+        credentials {
+            username = "${JAVA_ARTIFACTORY_READ_USERNAME}"
+            password = "${JAVA_ARTIFACTORY_READ_PASSWORD}"
+        }
+        url = "${JAVA_ARTIFACTORY_READ_ENDPOINT}/"
+    }
+}
+
+dependencies {
+    configurations.all {
+        resolutionStrategy.cacheDynamicVersionsFor 0, 'seconds'
+        resolutionStrategy {
+            force 'com.squareup.okhttp3:okhttp:3.14.9'
+            force 'com.squareup.okhttp3:logging-interceptor:3.14.9'
+            force 'org.projectlombok:lombok:1.18.28'
+            force 'com.google.code.gson:gson:2.12.1'
+        }
+    }
+
+    // Core: sit-dash-sf as a library (shared checkout infra, DTOs, entity builders)
+    implementation(group: 'com.swiggy.sit-dash-sf', name: 'sit-dash-sf', version: 'latest.release') {
+        transitive = false
+    }
+
+    // Framework
+    implementation(group: 'swiggy-integration-test', name: 'core', version: 'latest.release') {
+        transitive = false
+    }
+    implementation(group: 'com.swiggy.test-framework', name: 'swiggy-test-framework', version: 'latest.release') {
+        transitive = false
+    }
+
+    // NiCatalog (JustCatalogFactory)
+    implementation(group: 'com.swiggy.sit-ni-catalog', name: 'sit-ni-catalog', version: 'latest.release') {
+        transitive = false
+    }
+
+    // Driver experience (DLM)
+    implementation(group: 'com.swiggy.sit-driver_experience', name: 'sit-driver_experience', version: 'latest.release') {
+        transitive = false
+    }
+
+    // Consumer management (UserSessionInfo protos)
+    implementation(group: 'com.swiggy.sit.consumer.management', name: 'sit-consumer-management', version: 'latest.release') {
+        transitive = false
+    }
+
+    // SCM (InwardingE2EUtil)
+    implementation(group: 'com.swiggy.sit-dash-scm', name: 'sit-dash-scm', version: 'latest.release') {
+        transitive = false
+    }
+
+    // Discounting (OffersStateManager)
+    implementation(group: 'com.swiggy.sit-discounting', name: 'sit-discounting', version: 'latest.release') {
+        transitive = false
+    }
+
+    // Pricing (api.FreebieItem/FreebieItems)
+    implementation(group: 'com.swiggy.sit-pricing', name: 'sit-pricing', version: 'latest.release') {
+        transitive = false
+    }
+
+    // Proto & gRPC
+    implementation 'com.google.protobuf:protobuf-java:3.21.7'
+    implementation 'com.google.protobuf:protobuf-java-util:3.21.7'
+    implementation 'io.grpc:grpc-stub:1.49.1'
+    implementation 'io.grpc:grpc-protobuf:1.49.1'
+
+    // Proto deps for JustCatalogHelper/Factory
+    implementation('com.swiggy.protos.dash:item-crud-bl:1.0.14')
+    implementation('com.swiggy.protos.platform:bundle-commons:0.0.59')
+    implementation(group: 'com.swiggy.pre_made_catalog_gateway.gen', name: 'catalog_1.8', version: 'latest.release') {
+        exclude group: 'io.grpc'
+    }
+
+    // Proto deps for JustOffer (rng protos)
+    implementation(group: 'com.swiggy.discountgateway.gen', name: 'discountshared_1.8', version: 'latest.release') {
+        exclude group: 'io.grpc'
+    }
+
+    // FCM gateway (FcOperationType for InwardingE2EUtil)
+    implementation(group: 'com.swiggy.fulfilment_center_management_gateway.gen', name: 'rack_management_1.8', version: 'latest.release')
+    implementation(group: 'com.swiggy.fulfilment_center_management_gateway.gen', name: 'shared_1.8', version: 'latest.release')
+
+
+    // HTTP client
+    implementation 'org.apache.httpcomponents:httpclient:4.5.9'
+    implementation 'org.apache.httpcomponents:httpcore:4.4.13'
+    implementation 'org.apache.httpcomponents:httpmime:4.5.9'
+
+    // CSV (JustOfferHelper)
+    implementation 'com.opencsv:opencsv:4.2'
+
+    // Misc
+    implementation 'commons-lang:commons-lang:2.6'
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
+    implementation("com.google.code.gson:gson:2.12.1")
+    implementation 'javax.annotation:javax.annotation-api:1.3.2'
+
+    // Lombok
+    compileOnly "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+    testCompileOnly "org.projectlombok:lombok:${lombokVersion}"
+    testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+    // TestNG
+    implementation group: 'org.testng', name: 'testng', version: '7.4.0'
+}
+
+allure {
+    autoconfigure = true
+    version = '2.24.0'
+}
+
+jar {
+    archiveBaseName = "sit-just"
+    from(sourceSets.main.output)
+    exclude('META-INF/')
+}
+
+task fatJar(type: Jar) {
+    archiveBaseName = "sit-just_fat"
+    zip64 = true
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(sourceSets.test.output)
+    from configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    exclude 'META-INF/*.RSA'
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+}
+
+artifacts {
+    archives(fatJar) {
+        name = 'sit-just_fat'
+        type = 'jar'
+        builtBy fatJar
+        classifier = 'fat'
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            groupId = group_name
+            artifactId = "sit-just"
+            version = package_version
+            from components.java
+            artifact(fatJar) {
+                classifier = 'fat'
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = "artifactory"
+            url = JAVA_ARTIFACTORY_WRITE_ENDPOINT
+            credentials {
+                username = JAVA_ARTIFACTORY_WRITE_USERNAME
+                password = JAVA_ARTIFACTORY_WRITE_PASSWORD
+            }
+        }
+    }
+}
+
+tasks.withType(JavaCompile) {
+    options.incremental = true
+    options.encoding = "UTF-8"
+    options.fork = true
+    options.forkOptions.jvmArgs = ['-Xmx4g', '-Xms1g', '-XX:MaxMetaspaceSize=512m', '-XX:+UseG1GC']
+}
+
+test {
+    ignoreFailures = false
+    maxHeapSize = "4g"
+    useTestNG {
+        suiteFile = project.getProperty('suiteFile')
+        suites 'src/test/resources/' + suiteFile
+        useDefaultListeners = true
+    }
+    afterTest { desc, result ->
+        println "Executing test ${desc.name} [${desc.className}] with result: ${result.resultType}"
+    }
+    testLogging {
+        exceptionFormat = "full"
+        events "passed", "skipped", "failed"
+    }
+    testLogging.showStandardStreams = true
+    systemProperties System.properties
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs 'src/main/java', 'src/test/java'
+        }
+        resources {
+            srcDirs 'src/main/resources', 'src/test/resources'
+        }
+    }
+    test {
+        java {
+            srcDirs 'src/main/java', 'src/test/java'
+        }
+        resources {
+            srcDirs 'src/main/resources', 'src/test/resources'
+        }
+    }
+}
+
+clean {
+    doFirst {
+        delete 'allure-results'
+        delete 'test-output'
+        delete 'logs'
+        delete 'LOG_HOME_IS_UNDEFINED'
+        println 'Cleaned test result directories'
+    }
+}

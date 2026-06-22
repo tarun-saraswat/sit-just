@@ -1,0 +1,16 @@
+.gradle/
+build/
+out/
+*.iml
+*.ipr
+*.iws
+.idea/
+generated-sources/
+allure-results/
+allure-report/
+test-output/
+logs/
+*.class
+*.jar
+target/
+LOG_HOME_IS_UNDEFINED/
