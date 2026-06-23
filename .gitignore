@@ -16,3 +16,9 @@ target/
 LOG_HOME_IS_UNDEFINED/
 src/main/resources/services-configuration.xml
 services-configuration.xml
+env-setup/credentials.env
+eph.properties
+envVariables-*
+vmOptions-*
+envVariables
+vmOptions
