@@ -8,6 +8,7 @@ import com.swiggy.generated.sources.consumer.management.UserSessionInfo;
 import com.swiggy.generated.sources.dash.clearcart.ClearCart;
 import com.swiggy.test.dash.ImEnums.ImDevice;
 
+import com.swiggy.test.util.EnvUtil;
 import com.swiggy.utils.JsonUtils;
 import com.swiggy.utils.exceptions.APIException;
 import com.swiggy.utils.logger.ILogger;
@@ -101,7 +102,7 @@ class JustHelper implements ILogger {
         LOG.info("Cart payLoad for Just :: {}", JsonUtils.convertToSingleLineJson(cartPayLoad));
         HTTPResponseHandlers handlers = null;
         for (int i = 0; i < retries; i++) {
-            handlers = getRestClient().createRequest(JUST_CHECKOUT_SERVICE.toString(), specs, DASH_ADD_TO_CART).post();
+            handlers = getRestClient().createRequest(justCheckoutBaseUrl(), specs, DASH_ADD_TO_CART).post();
             if (handlers.getHTTPResponse().getStatusCode() == HttpStatus.SC_OK) {
                 String response = handlers.getHTTPResponse().getBody().getBodyText();
                 StructureCartResponse.Builder structureCartResponseBuilder = StructureCartResponse.newBuilder();
@@ -146,7 +147,7 @@ class JustHelper implements ILogger {
         OrderResponse orderResponse;
         Thread.sleep(2000);
         for (int i = 0; i < retries; i++) {
-            handlers = getRestClient().createRequest(JUST_CHECKOUT_SERVICE.toString(), specs, INSTAMART_CHECKOUT_ORDER).post();
+            handlers = getRestClient().createRequest(justCheckoutBaseUrl(), specs, INSTAMART_CHECKOUT_ORDER).post();
             if (handlers.getHTTPResponse().getStatusCode() == HttpStatus.SC_OK) {
                 response = handlers.getHTTPResponse().getBody().getBodyText();
                 OrderResponse.Builder orderResponseBuilder = OrderResponse.newBuilder();
@@ -181,7 +182,7 @@ class JustHelper implements ILogger {
         HTTPRequestSpecification specs = new HTTPRequestSpecification(cartHeaders, hybridParams, payload);
         HTTPResponseHandlers handlers = null;
         for (int i = 0; i < retries; i++) {
-            handlers = getRestClient().createRequest(JUST_CHECKOUT_SERVICE.toString(), specs, DASH_CREATE_CART_WITH_COUPON_CODE_NEW).post();
+            handlers = getRestClient().createRequest(justCheckoutBaseUrl(), specs, DASH_CREATE_CART_WITH_COUPON_CODE_NEW).post();
             if (handlers.getHTTPResponse().getStatusCode() == HttpStatus.SC_OK) {
                 String response = handlers.getHTTPResponse().getBody().getBodyText();
                 StructureCartResponse.Builder builder = StructureCartResponse.newBuilder();
@@ -203,6 +204,9 @@ class JustHelper implements ILogger {
         return new UniRestClient();
     }
 
+    private String justCheckoutBaseUrl() {
+        return getRestClient().createRequest(JUST_CHECKOUT_SERVICE.toString(), new HTTPRequestSpecification(), "").getBaseUrl();
+    }
 
     /**
      * Confirms Order payment For Instamart
@@ -225,7 +229,7 @@ class JustHelper implements ILogger {
         OrderResponse structureOrderResponse;
         Thread.sleep(2000);
         for (int i = 0; i < retries; i++) {
-            handlers = getRestClient().createRequest(JUST_CHECKOUT_SERVICE.toString(), specs, INSTAMART_CONFIRM_ORDER).post();
+            handlers = getRestClient().createRequest(justCheckoutBaseUrl(), specs, INSTAMART_CONFIRM_ORDER).post();
             if (handlers.getHTTPResponse().getStatusCode() == HttpStatus.SC_OK) {
                 response = handlers.getHTTPResponse().getBody().getBodyText();
                 OrderResponse.Builder structuredOrderResponseBuilder = OrderResponse.newBuilder();
@@ -256,7 +260,7 @@ class JustHelper implements ILogger {
         HTTPQueryParams httpQueryParams = new HTTPQueryParams();
         httpQueryParams.addParam(CART_TYPE, JUST_CART_TYPE);
         HTTPRequestSpecification spec = new HTTPRequestSpecification(headers, httpQueryParams);
-        HTTPResponseHandlers handlers = getRestClient().createRequest(JUST_CHECKOUT_SERVICE.toString(), spec, INSTAMART_CLEAR_CART).post();
+        HTTPResponseHandlers handlers = getRestClient().createRequest(justCheckoutBaseUrl(), spec, INSTAMART_CLEAR_CART).post();
         HTTPBody body = handlers.getHTTPResponse().getBody();
         if (handlers.getHTTPResponse().getStatusCode() == HttpStatus.SC_OK) {
             LOG.info("Clear cart response :: {}", body.getBodyText());

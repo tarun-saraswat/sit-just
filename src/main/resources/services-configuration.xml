@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<services>
+    <service baseurl="localhost:8080" servicename="localhttp" type="http" isMock="false" isTunneling="false" onboarded="true"/>
+    <service baseurl="localhost:8080" servicename="localhttps" type="https" isMock="true" isTunneling="false" onboarded="false"/>
+    <service baseurl="test-context-platform.preprod.singapore" servicename="test-context-platform" type="http" isMock="false" isTunneling="false" onboarded="true"/>
+    <service baseurl="just-checkout.env022.in-west.swig.gy" servicename="just-checkout" type="http" isMock="false" isTunneling="false" onboarded="true"/>
+</services>

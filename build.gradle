@@ -31,7 +31,7 @@ java {
 ext {
     lombokVersion = '1.18.28'
     if (!project.hasProperty('suiteFile')) {
-        suiteFile = 'testng.xml'
+        suiteFile = 'justCart.xml'
     }
 }
 
@@ -53,16 +53,35 @@ dependencies {
     configurations.all {
         resolutionStrategy.cacheDynamicVersionsFor 0, 'seconds'
         resolutionStrategy {
+            force 'redis.clients:jedis:3.9.0'
             force 'com.squareup.okhttp3:okhttp:3.14.9'
             force 'com.squareup.okhttp3:logging-interceptor:3.14.9'
             force 'org.projectlombok:lombok:1.18.28'
             force 'com.google.code.gson:gson:2.12.1'
+            force 'io.grpc:grpc-netty-shaded:1.51.0'
+            force 'io.grpc:grpc-core:1.51.0'
+            force 'io.grpc:grpc-api:1.51.0'
+            force 'io.grpc:grpc-protobuf:1.51.0'
+            force 'io.grpc:grpc-protobuf-lite:1.51.0'
+            force 'io.grpc:grpc-stub:1.51.0'
+            force 'io.grpc:grpc-context:1.51.0'
         }
     }
 
     // Core: sit-dash-sf as a library (shared checkout infra, DTOs, entity builders)
-    implementation(group: 'com.swiggy.sit-dash-sf', name: 'sit-dash-sf', version: 'latest.release') {
+    implementation(group: 'com.swiggy.sit-dash-sf', name: 'sit-dash-sf', version: 'latest.release'){
         transitive = false
+    }
+
+    // Transitive dep of sit-dash-sf (provides StoreFactory, LocationFactory, CityFactory etc.)
+    // transitive=true with exclusions for broken artifacts that don't resolve
+    implementation(group: 'com.swiggy.sit-dash-stores', name: 'sit-dash-stores', version: 'latest.release') {
+        exclude group: 'org.apache.kafka', module: 'kafka-clients'
+        exclude group: 'com.swiggy.protos.rng', module: 'membership-server'
+        exclude group: 'com.swiggy.protos.delivery', module: 'delivery-instructor'
+        exclude group: 'com.swiggy.protos.location-platform', module: 'central-address-service'
+        exclude group: 'com.swiggy.protos.orderplatform', module: 'order-service'
+        exclude group: 'com.swiggy.commons', module: 'kafka-client-java'
     }
 
     // Framework
@@ -71,6 +90,27 @@ dependencies {
     }
     implementation(group: 'com.swiggy.test-framework', name: 'swiggy-test-framework', version: 'latest.release') {
         transitive = false
+    }
+
+    // Runtime deps needed by BaseTest / framework (excluded by transitive=false above)
+    implementation 'io.rest-assured:rest-assured:5.1.1'
+    implementation 'commons-configuration:commons-configuration:1.10'
+    implementation 'log4j:log4j:1.2.17'
+    implementation 'org.apache.logging.log4j:log4j-api:2.17.1'
+    implementation 'org.apache.logging.log4j:log4j-core:2.17.1'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    implementation 'commons-io:commons-io:2.11.0'
+    implementation 'com.mashape.unirest:unirest-java:1.4.9'
+    implementation 'org.jsoup:jsoup:1.15.4'
+    implementation 'org.jdom:jdom2:2.0.6.1'
+    implementation 'org.springframework:spring-context:5.3.27'
+    implementation 'org.springframework.data:spring-data-redis:2.7.18'
+    implementation 'org.apache.kafka:kafka-clients:3.3.2'
+    implementation('com.swiggy.commons:kafka-client-java:1.9.5-701') {
+        exclude group: 'org.apache.kafka', module: 'kafka-clients'
+    }
+    implementation('com.swiggy.dash:dash-orderability-grpc-java-client:1.0.00-33') {
+        exclude group: 'io.grpc'
     }
 
     // NiCatalog (JustCatalogFactory)
@@ -85,6 +125,26 @@ dependencies {
 
     // Consumer management (UserSessionInfo protos)
     implementation(group: 'com.swiggy.sit.consumer.management', name: 'sit-consumer-management', version: 'latest.release') {
+        transitive = false
+    }
+
+    // Shipment management (TMS, needed by OrderStateManager in sit-dash-sf)
+    implementation(group: 'com.swiggy.sit-shipment_management', name: 'sit-shipment_management', version: 'latest.release') {
+        transitive = false
+    }
+
+    // Dummy domain (OrderFactory, needed by TMSStateManager in sit-shipment_management)
+    implementation(group: 'com.swiggy.sit-dummy_domain', name: 'sit-dummy_domain', version: 'latest.release') {
+        transitive = false
+    }
+
+    // Address (AddressV2Factory, needed by UserSessionFactory)
+    implementation(group: 'com.swiggy.sit-address', name: 'sit-address', version: 'latest.release') {
+        transitive = false
+    }
+
+    // CLM (ClmFactory, needed by DashUtil)
+    implementation(group: 'com.swiggy.sit-clm', name: 'sit-clm', version: 'latest.release') {
         transitive = false
     }
 
@@ -103,14 +163,23 @@ dependencies {
         transitive = false
     }
 
+    // Order platform protos (OrderInfoAPIGrpc, needed by OrderPlatformHelper)
+    implementation('com.swiggy.protos.orderplatform:order-service:latest.release') {
+        exclude group: 'io.grpc'
+    }
+
     // Proto & gRPC
     implementation 'com.google.protobuf:protobuf-java:3.21.7'
     implementation 'com.google.protobuf:protobuf-java-util:3.21.7'
-    implementation 'io.grpc:grpc-stub:1.49.1'
-    implementation 'io.grpc:grpc-protobuf:1.49.1'
+    implementation 'io.grpc:grpc-stub:1.51.0'
+    implementation 'io.grpc:grpc-protobuf:1.51.0'
 
     // Proto deps for JustCatalogHelper/Factory
     implementation('com.swiggy.protos.dash:item-crud-bl:1.0.14')
+    implementation('com.swiggy.protos.dash:scm-inventory-location:1.0.40') {
+        exclude group: 'com.swiggy.protos.dash', module: 'scm-reporting'
+    }
+    implementation files('/Users/tarun.saraswat/.gradle/caches/modules-2/files-2.1/com.swiggy.protos.dash/scm-reporting/1.0.58/bac61e395fc1ab275a1dbc20866be074fa032fdb/scm-reporting-1.0.58.jar')
     implementation('com.swiggy.protos.platform:bundle-commons:0.0.59')
     implementation(group: 'com.swiggy.pre_made_catalog_gateway.gen', name: 'catalog_1.8', version: 'latest.release') {
         exclude group: 'io.grpc'
@@ -124,6 +193,23 @@ dependencies {
     // FCM gateway (FcOperationType for InwardingE2EUtil)
     implementation(group: 'com.swiggy.fulfilment_center_management_gateway.gen', name: 'rack_management_1.8', version: 'latest.release')
     implementation(group: 'com.swiggy.fulfilment_center_management_gateway.gen', name: 'shared_1.8', version: 'latest.release')
+
+    // SCM inventory gateway protos (needed by sit-dash-scm InwardingE2EUtil)
+    implementation(group: 'com.swiggy.scm_inventory_gateway.gen', name: 'scminventory_1.8', version: 'latest.release') {
+        exclude group: 'io.grpc'
+    }
+    implementation(group: 'com.swiggy.scm_inventory_gateway.gen', name: 'itemlocationsmapping_1.8', version: 'latest.release') {
+        exclude group: 'io.grpc'
+    }
+
+    // SCM supply chain management gateway protos
+    implementation(group: 'com.swiggy.supply_chain_management_gateway.gen', name: 'shared_1.8', version: 'latest.release') {
+        transitive = false
+        exclude group: 'io.grpc'
+    }
+    implementation(group: 'com.swiggy.supply_chain_management_gateway.gen', name: 'supplier_1.8', version: 'latest.release') {
+        exclude group: 'io.grpc'
+    }
 
 
     // HTTP client
@@ -146,8 +232,16 @@ dependencies {
     testCompileOnly "org.projectlombok:lombok:${lombokVersion}"
     testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"
 
+    // Logging
+    implementation 'ch.qos.logback:logback-classic:1.2.12'
+
+
     // TestNG
     implementation group: 'org.testng', name: 'testng', version: '7.4.0'
+
+    // Allure (explicit for IntelliJ runner compatibility)
+    implementation 'io.qameta.allure:allure-testng:2.24.0'
+    implementation 'io.qameta.allure:allure-test-filter:2.24.0'
 }
 
 allure {
@@ -205,6 +299,10 @@ publishing {
     }
 }
 
+tasks.withType(Copy) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
 tasks.withType(JavaCompile) {
     options.incremental = true
     options.encoding = "UTF-8"
@@ -216,8 +314,7 @@ test {
     ignoreFailures = false
     maxHeapSize = "4g"
     useTestNG {
-        suiteFile = project.getProperty('suiteFile')
-        suites 'src/test/resources/' + suiteFile
+        suites 'src/test/resources/' + project.getProperty('suiteFile')
         useDefaultListeners = true
     }
     afterTest { desc, result ->
@@ -242,10 +339,10 @@ sourceSets {
     }
     test {
         java {
-            srcDirs 'src/main/java', 'src/test/java'
+            srcDirs 'src/test/java'
         }
         resources {
-            srcDirs 'src/main/resources', 'src/test/resources'
+            srcDirs 'src/test/resources'
         }
     }
 }
