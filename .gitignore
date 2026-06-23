@@ -14,3 +14,5 @@ logs/
 *.jar
 target/
 LOG_HOME_IS_UNDEFINED/
+src/main/resources/services-configuration.xml
+services-configuration.xml
