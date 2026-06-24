@@ -16,6 +16,8 @@ import java.util.UUID;
 public class JustCatalogFactory implements ILogger {
 
     private static final String JUST_BL = "JUST";
+    public static final int DEFAULT_CONVERSION_FACTOR_FOR_SELLABLE_SPIN = 100;
+    public static final int DEFAULT_CONVERSION_FACTOR_FOR_CASE_SPIN = 50000;
 
     private final JustCatalogHelper justCatalogHelper;
     private final NiCatalogDataManager niCatalogDataManager;
@@ -25,8 +27,9 @@ public class JustCatalogFactory implements ILogger {
         this.niCatalogDataManager = new NiCatalogDataManager();
     }
 
-    public SPIN createHomeDecorSpinForJust() throws Exception {
-        Map<String, ItemCommonsProto.AttributeUpsertEntity> attributes = buildAttributes();
+    // --- Public: Build request from attributes map ---
+
+    public ItemHandlerApiProto.CreateSpinRequest buildCreateSpinRequest(Map<String, ItemCommonsProto.AttributeUpsertEntity> attributes) {
         Map<String, String> meta = new HashMap<>();
         meta.put("source_system", "local");
         meta.put("updated_by", "test@swiggy.in");
@@ -37,12 +40,16 @@ public class JustCatalogFactory implements ILogger {
                 .setBusinessLineId("INSTAMART")
                 .build();
 
-        ItemHandlerApiProto.CreateSpinRequest request = ItemHandlerApiProto.CreateSpinRequest.newBuilder()
+        return ItemHandlerApiProto.CreateSpinRequest.newBuilder()
                 .setMarketPlaceContext(mpContext)
                 .putAllAttributes(attributes)
                 .putAllMeta(meta)
                 .build();
+    }
 
+    // --- Public: Execute the RPC and return SPIN ---
+
+    public SPIN executeCreateSpin(ItemHandlerApiProto.CreateSpinRequest request) throws Exception {
         ItemHandlerApiProto.CreateSpinResponse response = justCatalogHelper.createSpin(request, JUST_BL);
         LOG.info("CreateSpin response: {}", response);
 
@@ -54,7 +61,113 @@ public class JustCatalogFactory implements ILogger {
         return spins.get(0);
     }
 
-    private Map<String, ItemCommonsProto.AttributeUpsertEntity> buildAttributes() {
+    // --- Public: Fire the RPC without fetching the SPIN (for negative tests that expect failure) ---
+
+    public void fireCreateSpinRpc(ItemHandlerApiProto.CreateSpinRequest request) {
+        justCatalogHelper.createSpin(request, JUST_BL);
+    }
+
+    // --- Public: Get a mutable base attributes map for tests to tweak ---
+
+    public Map<String, ItemCommonsProto.AttributeUpsertEntity> buildLooseSpinAttributes() {
+        Map<String, ItemCommonsProto.AttributeUpsertEntity> attrs = new HashMap<>();
+
+        attrs.put("category", attr("ghee"));
+        attrs.put("bar_codes", attr(UUID.randomUUID().toString().replace("-", "").substring(0, 13)));
+        attrs.put("commission_type", attr("percentage"));
+        attrs.put("commission_value", attr("10"));
+        attrs.put("SCM_item_type", attr("NORMAL"));
+        attrs.put("super_category/L1", attr("Home Decor"));
+        attrs.put("category/L2", attr("Furniture"));
+        attrs.put("sub-category/L3", attr("Lighting"));
+        attrs.put("brand_id", attr("7c457380674101262c560ab7c54c476c3065f1d7"));
+        attrs.put("is_margin_percent", attr("No"));
+        attrs.put("product name", attr("Final Testing Base - 1"));
+        attrs.put("parent product name", attr("PP" + UUID.randomUUID().toString().replace("-", "").substring(0, 20)));
+        attrs.put("mrp", attr("50"));
+        attrs.put("cost_price", attr("15"));
+        attrs.put("on_invoice_margin", attr("base + 10%"));
+        attrs.put("total_margin", attr("base + 10%"));
+        attrs.put("weight_in_grams", attr("500.5"));
+        attrs.put("hsn_code", attr("22021090"));
+        attrs.put("tax_code", attr("a0a79f85-e41e-44f8-a97d-cd9704c1b88b"));
+        attrs.put("case_size", attr("5"));
+        attrs.put("shelf life number", attr("50"));
+        attrs.put("whs_inwarding_cutoff", attr("14"));
+        attrs.put("inwarding_cutoff", attr("12"));
+        attrs.put("sellable shelf life", attr("10"));
+        attrs.put("storage_requirement_temperature", attr("(-18 Degrees)"));
+        attrs.put("storage_requirement_type", attr("Ambient"));
+        attrs.put("photo_shoot_required", attr("Yes"));
+        attrs.put("length_in_cm", attr("10.523"));
+        attrs.put("width_in_cm", attr("5.567"));
+        attrs.put("height_in_cm", attr("11.512"));
+        attrs.put("country_of_origin", attr("India"));
+        attrs.put("dsd_wh_crossdock", attr("DSD"));
+        attrs.put("perishable", attr("No"));
+        attrs.put("maintain_selling_mrp_by", attr("Same selling price & M.R.P"));
+        attrs.put("max_allowed_quantity", attr("50"));
+        attrs.put("sellable_type", attr("SELLABLE_TYPE_LOOSE"));
+        attrs.put("applicable_bls", attr("JUST"));
+        attrs.put("return_eligibility", attr("false"));
+        attrs.put("number_of_rooms", attr("5"));
+        attrs.put("style", attr("Sofa"));
+        attrs.put("average_rating", attr("3.8"));
+        attrs.put("quantity", attr("1"));
+        attrs.put("type_of_room", attr("Living room"));
+        attrs.put("unit of measure", attr("g"));
+        attrs.put("energy_consumption", attr("25.2"));
+        attrs.put("volume_in_cc", attr("840.0"));
+        attrs.put("temp_sku", attr("Yes"));
+        attrs.put("is_digital", attr("false"));
+        attrs.put("is_barcode_available", attr("true"));
+        attrs.put("vinculum_flow_enabled", attr("yes"));
+        attrs.put("category_id", attr("f894178f-8ad8-4e8b-b7b6-f52577ea1b07"));
+        attrs.put("rtv_applicable", attr("No"));
+
+        return attrs;
+    }
+
+    // --- Convenience: High-level create methods ---
+
+    public SPIN createBaseSpin() throws Exception {
+        Map<String, ItemCommonsProto.AttributeUpsertEntity> attrs = buildLooseSpinAttributes();
+        attrs.put("loose_item_type", attr("LOOSE_ITEM_TYPE_BASE"));
+        return executeCreateSpin(buildCreateSpinRequest(attrs));
+    }
+
+    public SPIN createSellableSkuForGivenBase(String baseSpinId, int conversionFactor) throws Exception {
+        Map<String, ItemCommonsProto.AttributeUpsertEntity> attrs = buildLooseSpinAttributes();
+        attrs.put("loose_item_type", attr("LOOSE_ITEM_TYPE_SELLABLE_VARIANT"));
+        attrs.put("conversion_factor", attr(String.valueOf(conversionFactor)));
+        attrs.put("base_spin_id", attr(baseSpinId));
+        return executeCreateSpin(buildCreateSpinRequest(attrs));
+    }
+
+    public SPIN createSellableSkuForGivenBaseAndDefaultConversionFactor(String baseSpinId) throws Exception {
+        return createSellableSkuForGivenBase(baseSpinId, DEFAULT_CONVERSION_FACTOR_FOR_SELLABLE_SPIN);
+    }
+
+    public SPIN createCaseSpinForGivenBase(String baseSpinId, int conversionFactor) throws Exception {
+        Map<String, ItemCommonsProto.AttributeUpsertEntity> attrs = buildLooseSpinAttributes();
+        attrs.put("loose_item_type", attr("LOOSE_ITEM_TYPE_CASE"));
+        attrs.put("conversion_factor", attr(String.valueOf(conversionFactor)));
+        attrs.put("base_spin_id", attr(baseSpinId));
+        return executeCreateSpin(buildCreateSpinRequest(attrs));
+    }
+
+    public SPIN createCaseSpinForGivenBaseAndDefaultConversionFactor(String baseSpinId) throws Exception {
+        return createCaseSpinForGivenBase(baseSpinId, DEFAULT_CONVERSION_FACTOR_FOR_CASE_SPIN);
+    }
+
+    // --- Legacy: Home Decor SPIN for JustCartTest ---
+
+    public SPIN createHomeDecorSpinForJust() throws Exception {
+        Map<String, ItemCommonsProto.AttributeUpsertEntity> attributes = buildHomeDecorAttributes();
+        return executeCreateSpin(buildCreateSpinRequest(attributes));
+    }
+
+    private Map<String, ItemCommonsProto.AttributeUpsertEntity> buildHomeDecorAttributes() {
         Map<String, ItemCommonsProto.AttributeUpsertEntity> attrs = new HashMap<>();
 
         attrs.put("SCM_item_type", attr("NORMAL"));
@@ -111,7 +224,7 @@ public class JustCatalogFactory implements ILogger {
         return attrs;
     }
 
-    private ItemCommonsProto.AttributeUpsertEntity attr(String value) {
+    public ItemCommonsProto.AttributeUpsertEntity attr(String value) {
         return ItemCommonsProto.AttributeUpsertEntity.newBuilder()
                 .setActionTypeValue(ItemCommonsProto.ActionType.ACTION_TYPE_ADD_VALUE)
                 .setAttributeValueString(value)
