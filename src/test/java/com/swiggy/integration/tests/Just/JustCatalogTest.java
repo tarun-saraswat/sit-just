@@ -45,7 +45,7 @@ public class JustCatalogTest extends BaseTest implements ILogger {
             Assert.fail("CASE SPIN creation should have failed with conversion_factor=0");
         } catch (StatusRuntimeException e) {
             LOG.info("Expected failure for CASE with conversion_factor=0: {}", e.getMessage());
-            Assert.assertTrue(e.getMessage().contains("conversion_factor must be a positive integer"),
+            Assert.assertTrue(e.getMessage().contains("conversion_factor must be a positive integer, got 0"),
                     "Expected conversion_factor validation error but got: " + e.getMessage());
         } catch (Exception e) {
             Assert.fail("Unexpected exception type: " + e.getClass().getName() + " - " + e.getMessage());
@@ -59,7 +59,7 @@ public class JustCatalogTest extends BaseTest implements ILogger {
             Assert.fail("SELLABLE_VARIANT creation should have failed without base_spin_id");
         } catch (StatusRuntimeException e) {
             LOG.info("Expected failure for SELLABLE_VARIANT without base_spin_id: {}", e.getMessage());
-            Assert.assertTrue(e.getMessage().contains("base_spin_id"),
+            Assert.assertTrue(e.getMessage().contains("base_spin_id is required for CASE and SELLABLE_VARIANT loose spins"),
                     "Expected base_spin_id validation error but got: " + e.getMessage());
         } catch (Exception e) {
             Assert.fail("Unexpected exception type: " + e.getClass().getName() + " - " + e.getMessage());
@@ -92,7 +92,7 @@ public class JustCatalogTest extends BaseTest implements ILogger {
             Assert.fail("CASE SPIN creation should have failed without base_spin_id");
         } catch (StatusRuntimeException e) {
             LOG.info("Expected failure for CASE without base_spin_id: {}", e.getMessage());
-            Assert.assertTrue(e.getMessage().contains("base_spin_id"),
+            Assert.assertTrue(e.getMessage().contains("base_spin_id is required for CASE and SELLABLE_VARIANT loose spins"),
                     "Expected base_spin_id validation error but got: " + e.getMessage());
         }
     }
@@ -108,8 +108,7 @@ public class JustCatalogTest extends BaseTest implements ILogger {
             Assert.fail("BASE SPIN creation should have failed with non-empty base_spin_id");
         } catch (StatusRuntimeException e) {
             LOG.info("Expected failure for BASE with non-empty base_spin_id: {}", e.getMessage());
-            Assert.assertTrue(e.getMessage().contains("base_spin_id must be absent")
-                            || e.getMessage().contains("base_spin"),
+            Assert.assertTrue(e.getMessage().contains("base_spin_id must be absent for BASE loose spins"),
                     "Expected base_spin_id validation error but got: " + e.getMessage());
         }
     }
@@ -125,7 +124,7 @@ public class JustCatalogTest extends BaseTest implements ILogger {
             Assert.fail("BASE SPIN creation should have failed with conversion_factor>0");
         } catch (StatusRuntimeException e) {
             LOG.info("Expected failure for BASE with conversion_factor>0: {}", e.getMessage());
-            Assert.assertTrue(e.getMessage().contains("conversion_factor"),
+            Assert.assertTrue(e.getMessage().contains("conversion_factor must be 0 for BASE loose spins"),
                     "Expected conversion_factor validation error but got: " + e.getMessage());
         }
     }
@@ -140,6 +139,8 @@ public class JustCatalogTest extends BaseTest implements ILogger {
             Assert.fail("SPIN creation should have failed with unknown loose_item_type");
         } catch (StatusRuntimeException e) {
             LOG.info("Expected failure for unknown loose_item_type: {}", e.getMessage());
+            Assert.assertTrue(e.getMessage().contains("sellable_type_attributes is required for LOOSE spins"),
+                    "Expected sellable_type_attributes validation error but got: " + e.getMessage());
         }
     }
 
@@ -155,7 +156,7 @@ public class JustCatalogTest extends BaseTest implements ILogger {
             Assert.fail("SPIN creation should have failed with non-numeric conversion_factor");
         } catch (StatusRuntimeException e) {
             LOG.info("Expected failure for non-numeric conversion_factor: {}", e.getMessage());
-            Assert.assertTrue(e.getMessage().contains("ParseFloat") || e.getMessage().contains("invalid syntax"),
+            Assert.assertTrue(e.getMessage().contains("strconv.ParseFloat: parsing \"abc\": invalid syntax"),
                     "Expected parse error for non-numeric conversion_factor but got: " + e.getMessage());
         }
     }

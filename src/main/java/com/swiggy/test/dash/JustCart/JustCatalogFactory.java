@@ -16,6 +16,7 @@ import java.util.UUID;
 public class JustCatalogFactory implements ILogger {
 
     private static final String JUST_BL = "JUST";
+    private static final String DEFAULT_TAX_CODE = "a0a79f85-e41e-44f8-a97d-cd9704c1b88b";
     public static final int DEFAULT_CONVERSION_FACTOR_FOR_SELLABLE_SPIN = 100;
     public static final int DEFAULT_CONVERSION_FACTOR_FOR_CASE_SPIN = 50000;
 
@@ -90,7 +91,7 @@ public class JustCatalogFactory implements ILogger {
         attrs.put("total_margin", attr("base + 10%"));
         attrs.put("weight_in_grams", attr("500.5"));
         attrs.put("hsn_code", attr("22021090"));
-        attrs.put("tax_code", attr("a0a79f85-e41e-44f8-a97d-cd9704c1b88b"));
+        attrs.put("tax_code", attr(DEFAULT_TAX_CODE));
         attrs.put("case_size", attr("5"));
         attrs.put("shelf life number", attr("50"));
         attrs.put("whs_inwarding_cutoff", attr("14"));
@@ -205,7 +206,7 @@ public class JustCatalogFactory implements ILogger {
         attrs.put("energy_consumption", attr("5"));
         attrs.put("style", attr("Bed"));
         attrs.put("sub-category/L3", attr("Lighting"));
-        attrs.put("tax_code", attr("a0a79f85-e41e-44f8-a97d-cd9704c1b88b"));
+        attrs.put("tax_code", attr(DEFAULT_TAX_CODE));
         attrs.put("maintain_selling_mrp_by", attr("Same selling price & M.R.P"));
         attrs.put("super_category/L1", attr("Home Decor"));
         attrs.put("inwarding_cutoff", attr("35"));

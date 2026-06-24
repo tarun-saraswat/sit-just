@@ -158,6 +158,11 @@ def extractKeys(filePath):
 
             for envVar in envVariableKeys:
                 envVars += envVar + ";\n"
+                # Also write as lowercase JVM system property for framework placeholder resolution
+                key = envVar.split("=")[0]
+                if key in serviceConfigVmOptionKeys:
+                    val = envVar.split("=", 1)[1]
+                    vmOptions += f"-D{serviceConfigVmOptionKeys[key]}={val}\n"
 
             envVars += "AWS_PROFILE=157529275398_AWSProductEngineering;\n"
             vmOptions += "-D" + "environment=" + ENV_NAME + "\n"
@@ -208,8 +213,32 @@ def file_exists_with_content(filepath):
     except:
         return False
 
+def ensureServicesConfig():
+    resources_dir = os.path.join(FRAMEWORK_PATH, "src", "main", "resources")
+    target = os.path.join(resources_dir, "services-configuration.xml")
+    template = os.path.join(resources_dir, "services-config-template-new.xml")
+    if os.path.exists(template):
+        with open(template, "r") as f:
+            content = f.read()
+        # Substitute placeholders with actual values so the framework doesn't need -D flags
+        substitutions = {
+            "${shuttle_env}": ENV_NAME,
+            "${shuttle_env_location}": "in-west.swig.gy",
+            "${rock_type}": "https",
+            "${dns_type}": "http",
+            "${grpc_type}": "grpc",
+        }
+        for placeholder, value in substitutions.items():
+            content = content.replace(placeholder, value)
+        with open(target, "w") as f:
+            f.write(content)
+        print(f"Created {target} with env={ENV_NAME} (placeholders resolved)")
+    else:
+        print(f"Warning: template not found at {template}, skipping services-configuration.xml creation")
+
 def main():
     try:
+        ensureServicesConfig()
         getEphProperties()
 
         if file_exists_with_content(EPH_PROP):

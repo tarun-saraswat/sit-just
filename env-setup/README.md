@@ -33,12 +33,13 @@ python3 ephemeralEnvVars.py
 ```
 
 **What this does:**
-1. Calls `coast` to find the running instance in your ephemeral env
-2. Downloads the `eph.properties` file from the instance via S3
-3. Parses the properties and generates two files in the `env-setup/` folder:
+1. Creates `src/main/resources/services-configuration.xml` from the template (if it doesn't exist — this file is gitignored and must exist locally)
+2. Calls `coast` to find the running instance in your ephemeral env
+3. Downloads the `eph.properties` file from the instance via S3
+4. Parses the properties and generates two files in the `env-setup/` folder:
    - `envVariables-<ENV_NAME>` — all environment variables for the run config
    - `vmOptions-<ENV_NAME>` — Kafka and environment JVM `-D` flags
-4. Creates convenience symlinks `envVariables` and `vmOptions` pointing to the above
+5. Creates convenience symlinks `envVariables` and `vmOptions` pointing to the above
 
 > **Note:** DB usernames are replaced with `root` and passwords with `password123` automatically. AWS credential keys are stripped from the output file.
 

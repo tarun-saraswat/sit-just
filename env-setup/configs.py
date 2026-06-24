@@ -1,6 +1,6 @@
 import os
 
-ENV_NAME = "env084"
+ENV_NAME = "<ephemeral_env_name>"
 FRAMEWORK_PATH = os.path.dirname(os.getcwd())
 EPH_PROP = "eph.properties"
 GEN_PROPS = "./gradlew clean build -x test && ./gradlew generateProperties --offline --args='"+ ENV_NAME + " swiggyops.de singapore.swig.gy'"
@@ -26,6 +26,16 @@ vmOptionKeys = [
                 "KAFKA_TXN_DSP_PRIMARY",
                 "KAFKA_BATCH_PRIMARY"
             ]
+
+# Keys from envVariableKeys that also need to be written as lowercase JVM system properties
+# so the framework can resolve ${placeholder} syntax in services-configuration.xml
+serviceConfigVmOptionKeys = {
+    "SHUTTLE_ENV": "shuttle_env",
+    "SHUTTLE_ENV_LOCATION": "shuttle_env_location",
+    "ROCK_TYPE": "rock_type",
+    "DNS_TYPE": "dns_type",
+    "GRPC_TYPE": "grpc_type",
+}
 
 blackList = {
     "JAVA_TOOL_OPTIONS"
