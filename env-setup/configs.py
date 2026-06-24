@@ -1,6 +1,6 @@
 import os
 
-ENV_NAME = "env084"
+ENV_NAME = "<ephemeral_env_name>"
 FRAMEWORK_PATH = os.path.dirname(os.getcwd())
 EPH_PROP = "eph.properties"
 GEN_PROPS = "./gradlew clean build -x test && ./gradlew generateProperties --offline --args='"+ ENV_NAME + " swiggyops.de singapore.swig.gy'"
