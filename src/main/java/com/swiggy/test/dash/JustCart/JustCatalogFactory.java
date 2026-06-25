@@ -6,7 +6,9 @@ import com.swiggy.nicatalog.factories.NiCatalogDataManager;
 import com.swiggy.platform.shared.marketplace.v2.MpContextProto;
 import com.swiggy.pre_made_catalog_gateway.catalog.v1.SPIN;
 import com.swiggy.utils.logger.ILogger;
+import io.grpc.StatusRuntimeException;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +19,7 @@ public class JustCatalogFactory implements ILogger {
 
     private static final String JUST_BL = "JUST";
     private static final String DEFAULT_TAX_CODE = "a0a79f85-e41e-44f8-a97d-cd9704c1b88b";
+    private static final String DEFAULT_TAX_CODE_2 = "a6cec460-1b43-46f2-9be6-c086074ecb95";
     public static final int DEFAULT_CONVERSION_FACTOR_FOR_SELLABLE_SPIN = 100;
     public static final int DEFAULT_CONVERSION_FACTOR_FOR_CASE_SPIN = 50000;
 
@@ -48,9 +51,30 @@ public class JustCatalogFactory implements ILogger {
                 .build();
     }
 
-    // --- Public: Execute the RPC and return SPIN ---
+    // --- Public: Execute the RPC and return SPIN (with tax_code fallback) ---
 
     public SPIN executeCreateSpin(ItemHandlerApiProto.CreateSpinRequest request) throws Exception {
+        try {
+            return doCreateSpin(request);
+        } catch (StatusRuntimeException e) {
+            if (e.getMessage() != null && e.getMessage().contains("tax_code failed validation")) {
+                LOG.info("tax_code {} failed validation, retrying with fallback tax_code {}", DEFAULT_TAX_CODE, DEFAULT_TAX_CODE_2);
+                ItemHandlerApiProto.CreateSpinRequest fallbackRequest = rebuildRequestWithTaxCode(request, DEFAULT_TAX_CODE_2);
+                try {
+                    return doCreateSpin(fallbackRequest);
+                } catch (StatusRuntimeException e2) {
+                    if (e2.getMessage() != null && e2.getMessage().contains("tax_code failed validation")) {
+                        throw new RuntimeException("SPIN creation failed with both tax codes "
+                                + Arrays.asList(DEFAULT_TAX_CODE, DEFAULT_TAX_CODE_2), e2);
+                    }
+                    throw e2;
+                }
+            }
+            throw e;
+        }
+    }
+
+    private SPIN doCreateSpin(ItemHandlerApiProto.CreateSpinRequest request) throws Exception {
         ItemHandlerApiProto.CreateSpinResponse response = justCatalogHelper.createSpin(request, JUST_BL);
         LOG.info("CreateSpin response: {}", response);
 
@@ -60,6 +84,15 @@ public class JustCatalogFactory implements ILogger {
             throw new RuntimeException("No SPIN found for spinId: " + spinId);
         }
         return spins.get(0);
+    }
+
+    private ItemHandlerApiProto.CreateSpinRequest rebuildRequestWithTaxCode(ItemHandlerApiProto.CreateSpinRequest original, String taxCode) {
+        Map<String, ItemCommonsProto.AttributeUpsertEntity> attrs = new HashMap<>(original.getAttributesMap());
+        attrs.put("tax_code", attr(taxCode));
+        return original.toBuilder()
+                .clearAttributes()
+                .putAllAttributes(attrs)
+                .build();
     }
 
     // --- Public: Fire the RPC without fetching the SPIN (for negative tests that expect failure) ---
@@ -85,8 +118,8 @@ public class JustCatalogFactory implements ILogger {
         attrs.put("is_margin_percent", attr("No"));
         attrs.put("product name", attr("Final Testing Base - 1"));
         attrs.put("parent product name", attr("PP" + UUID.randomUUID().toString().replace("-", "").substring(0, 20)));
-        attrs.put("mrp", attr("50"));
-        attrs.put("cost_price", attr("15"));
+        attrs.put("mrp", attr("300"));
+        attrs.put("cost_price", attr("200"));
         attrs.put("on_invoice_margin", attr("base + 10%"));
         attrs.put("total_margin", attr("base + 10%"));
         attrs.put("weight_in_grams", attr("500.5"));
@@ -131,30 +164,54 @@ public class JustCatalogFactory implements ILogger {
 
     // --- Convenience: High-level create methods ---
 
-    public SPIN createBaseSpin() throws Exception {
+    public SPIN createBaseSpin(String quantity, String unitOfMeasure, String costPrice, String mrp) throws Exception {
         Map<String, ItemCommonsProto.AttributeUpsertEntity> attrs = buildLooseSpinAttributes();
         attrs.put("loose_item_type", attr("LOOSE_ITEM_TYPE_BASE"));
+        attrs.put("quantity", attr(quantity));
+        attrs.put("unit of measure", attr(unitOfMeasure));
+        attrs.put("cost_price", attr(costPrice));
+        attrs.put("mrp", attr(mrp));
         return executeCreateSpin(buildCreateSpinRequest(attrs));
     }
 
-    public SPIN createSellableSkuForGivenBase(String baseSpinId, int conversionFactor) throws Exception {
+    public SPIN createBaseSpin() throws Exception {
+        return createBaseSpin("1", "g", "200", "300");
+    }
+
+    public SPIN createSellableSkuForGivenBase(String baseSpinId, int conversionFactor, String quantity, String unitOfMeasure, String costPrice, String mrp) throws Exception {
         Map<String, ItemCommonsProto.AttributeUpsertEntity> attrs = buildLooseSpinAttributes();
         attrs.put("loose_item_type", attr("LOOSE_ITEM_TYPE_SELLABLE_VARIANT"));
         attrs.put("conversion_factor", attr(String.valueOf(conversionFactor)));
         attrs.put("base_spin_id", attr(baseSpinId));
+        attrs.put("quantity", attr(quantity));
+        attrs.put("unit of measure", attr(unitOfMeasure));
+        attrs.put("cost_price", attr(costPrice));
+        attrs.put("mrp", attr(mrp));
         return executeCreateSpin(buildCreateSpinRequest(attrs));
+    }
+
+    public SPIN createSellableSkuForGivenBase(String baseSpinId, int conversionFactor) throws Exception {
+        return createSellableSkuForGivenBase(baseSpinId, conversionFactor, "100", "g", "200", "300");
     }
 
     public SPIN createSellableSkuForGivenBaseAndDefaultConversionFactor(String baseSpinId) throws Exception {
         return createSellableSkuForGivenBase(baseSpinId, DEFAULT_CONVERSION_FACTOR_FOR_SELLABLE_SPIN);
     }
 
-    public SPIN createCaseSpinForGivenBase(String baseSpinId, int conversionFactor) throws Exception {
+    public SPIN createCaseSpinForGivenBase(String baseSpinId, int conversionFactor, String quantity, String unitOfMeasure, String costPrice, String mrp) throws Exception {
         Map<String, ItemCommonsProto.AttributeUpsertEntity> attrs = buildLooseSpinAttributes();
         attrs.put("loose_item_type", attr("LOOSE_ITEM_TYPE_CASE"));
         attrs.put("conversion_factor", attr(String.valueOf(conversionFactor)));
         attrs.put("base_spin_id", attr(baseSpinId));
+        attrs.put("quantity", attr(quantity));
+        attrs.put("unit of measure", attr(unitOfMeasure));
+        attrs.put("cost_price", attr(costPrice));
+        attrs.put("mrp", attr(mrp));
         return executeCreateSpin(buildCreateSpinRequest(attrs));
+    }
+
+    public SPIN createCaseSpinForGivenBase(String baseSpinId, int conversionFactor) throws Exception {
+        return createCaseSpinForGivenBase(baseSpinId, conversionFactor, "20", "kg", "200", "300");
     }
 
     public SPIN createCaseSpinForGivenBaseAndDefaultConversionFactor(String baseSpinId) throws Exception {
